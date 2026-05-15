@@ -301,12 +301,14 @@ Used for:
 
 ## 🚀 Installation
 
-Clone project:
+Clone project :
 
 ```bash
-git clone https://github.com/yourusername/workx.git
+git clone [https://github.com/Amangupta210/workx-main-byaman.git](https://github.com/Amangupta210/workx-main-byaman)
 cd workx
 ```
+---- 
+Simple - download  Zip file 
 
 Install packages:
 
