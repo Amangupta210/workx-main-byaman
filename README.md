@@ -304,7 +304,7 @@ Used for:
 Clone project :
 
 ```bash
-git clone [https://github.com/Amangupta210/workx-main-byaman.git](https://github.com/Amangupta210/workx-main-byaman)
+git clone [https://github.com/Amangupta210/workx-main-byaman.git]
 cd workx
 ```
 ---- 
