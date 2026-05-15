@@ -124,7 +124,7 @@ Built-in assistant features:
 
 Powered by:
 
-[Ollama](https://ollama.com)
+[Ollama](https://ollama.com) and loacl ai by aman like some condition 
 
 ### Default Model
 
