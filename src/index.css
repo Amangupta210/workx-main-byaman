@@ -1,0 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 97%;
+    --foreground: 220 20% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 14%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 220 20% 14%;
+    --muted: 210 16% 93%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 170 70% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 199 89% 48%;
+    --radius: 0.5rem;
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-fg: 220 15% 30%;
+    --sidebar-hover: 210 16% 96%;
+    --sidebar-active: 199 89% 96%;
+    --sidebar-active-fg: 199 89% 38%;
+    --sidebar-border: 220 13% 93%;
+    --sidebar-width: 260px;
+    --editor-max-width: 780px;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 224 20% 10%;
+    --foreground: 210 20% 90%;
+    --card: 224 18% 13%;
+    --card-foreground: 210 20% 90%;
+    --popover: 224 18% 14%;
+    --popover-foreground: 210 20% 90%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 18%;
+    --secondary-foreground: 210 20% 85%;
+    --muted: 220 12% 20%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 170 70% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 12% 20%;
+    --input: 220 12% 20%;
+    --ring: 199 89% 48%;
+    --sidebar-bg: 224 18% 12%;
+    --sidebar-fg: 210 15% 70%;
+    --sidebar-hover: 220 14% 18%;
+    --sidebar-active: 199 50% 16%;
+    --sidebar-active-fg: 199 89% 65%;
+    --sidebar-border: 220 12% 18%;
+    --sidebar-background: 224 18% 11%;
+    --sidebar-foreground: 210 15% 70%;
+    --sidebar-primary: 210 20% 90%;
+    --sidebar-primary-foreground: 224 18% 13%;
+    --sidebar-accent: 220 14% 18%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 220 12% 18%;
+    --sidebar-ring: 199 89% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  .editor-surface {
+    @apply bg-card rounded-lg;
+  }
+
+  /*
+   * BUG FIXED: block-hover-controls
+   * Was: opacity-0 group-hover:opacity-100 — but touch devices never fire hover,
+   * so the drag handle + MoreHorizontal button were permanently invisible on mobile.
+   * Fix: keep the desktop hover fade, but always show them on touch (≤767 px).
+   */
+  .block-hover-controls {
+    @apply opacity-0 group-hover:opacity-100 transition-opacity duration-150;
+  }
+
+  @media (max-width: 767px) {
+    .block-hover-controls {
+      @apply opacity-100;
+    }
+  }
+
+  .slash-menu {
+    @apply bg-popover border border-border rounded-lg shadow-lg overflow-hidden;
+  }
+
+  .slash-menu-item {
+    @apply px-3 py-2 flex items-center gap-3 cursor-pointer transition-colors duration-100;
+  }
+
+  .slash-menu-item-active {
+    @apply bg-secondary;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors duration-100;
+    color: hsl(var(--sidebar-fg));
+  }
+
+  .sidebar-item:hover {
+    background: hsl(var(--sidebar-hover));
+  }
+
+  .sidebar-item-active {
+    background: hsl(var(--sidebar-active));
+    color: hsl(var(--sidebar-active-fg));
+    font-weight: 500;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Links inside contenteditable */
+[contenteditable] a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+[contenteditable] a:hover {
+  opacity: 0.8;
+}
+
+/* Placeholder for empty contenteditable */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Mobile bottom toolbar spacing */
+@media (max-width: 767px) {
+  .editor-mobile-pad {
+    padding-bottom: 72px;
+  }
+}
+
+/*
+ * BUG FIXED: Global transition
+ * Was: .dark *, :root * { transition: background-color ... color ... }
+ * This fired on EVERY keystroke in contenteditable/input elements, causing
+ * visible typing lag because the browser re-composited the entire subtree.
+ * Fix: exclude interactive elements from the transition selector.
+ */
+.dark *:not([contenteditable]):not(input):not(textarea):not(select),
+:root *:not([contenteditable]):not(input):not(textarea):not(select) {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* AI: highlight blocks just inserted by the assistant. Auto-fades out. */
+@keyframes ai-recent-pulse {
+  0%   { background-color: hsl(var(--primary) / 0.18); box-shadow: inset 3px 0 0 0 hsl(var(--primary)); }
+  70%  { background-color: hsl(var(--primary) / 0.10); box-shadow: inset 3px 0 0 0 hsl(var(--primary) / 0.6); }
+  100% { background-color: transparent; box-shadow: inset 3px 0 0 0 transparent; }
+}
+.ai-recent-block {
+  animation: ai-recent-pulse 6s ease-out forwards;
+  border-radius: 6px;
+}

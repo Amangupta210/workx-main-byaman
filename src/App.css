@@ -1,0 +1,12 @@
+/*
+ * App.css — intentionally empty.
+ *
+ * BUG FIXED: The original Vite scaffold left boilerplate here:
+ *   #root { max-width:1280px; padding:2rem; text-align:center }
+ *
+ * Those three rules caused two visible bugs:
+ *   1. padding:2rem shrinks the root element so h-screen overflows → scroll broken.
+ *   2. text-align:center forces all editor text to be centred.
+ *
+ * All layout is handled by Tailwind in index.css and the component tree.
+ */
