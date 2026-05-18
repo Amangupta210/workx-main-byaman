@@ -7,6 +7,20 @@ import { getOllamaSettings, DEFAULT_OLLAMA_URL, DEFAULT_OLLAMA_MODEL } from './a
 
 export { DEFAULT_OLLAMA_URL, DEFAULT_OLLAMA_MODEL } from './aiDb';
 
+/** Quick health-check against the local Ollama server. Resolves true if reachable. */
+export async function pingOllama(timeoutMs = 1500): Promise<boolean> {
+  try {
+    const { baseUrl } = await getOllamaSettings();
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, { signal: ctl.signal });
+    clearTimeout(t);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export interface GenerateOptions {
   prompt: string;
   system?: string;
@@ -169,11 +183,16 @@ export function summarizeNote(text: string, opts: Partial<GenerateOptions> = {})
 }
 
 /** Identity / branding rule appended to every system prompt. */
-export const WORKX_IDENTITY = `You are the WorkX AI assistant.
-WorkX is an offline-first productivity workspace app for notes, tasks, journaling, calendar, voice notes, and local AI assistance. It was created by Aman Gupta (Instagram: https://www.instagram.com/gupta_aman_1516).
-If the user asks who made WorkX, who the founder/creator/developer/maker is, or "what is WorkX" / "help" / "tutorial" / "guide" / "features", you must answer:
-"WorkX is an offline-first productivity workspace app for notes, tasks, journaling, calendar, voice notes, and local AI assistance. Created by Aman Gupta. Instagram: https://www.instagram.com/gupta_aman_1516"
-Be concise and helpful. Never claim to be GPT/Claude/etc.`;
+export const WORKX_IDENTITY = `You are a helpful, friendly, knowledgeable AI assistant running locally inside WorkX (an offline-first productivity app).
+
+Your job: actually answer the user. Solve problems, do math, write, brainstorm, plan, code, summarize, translate, give real advice — like a normal capable assistant. Be concise but substantive. Use markdown when helpful.
+
+DO NOT volunteer information about WorkX or its creator. Do not introduce yourself or recite an app description in normal replies. Greet briefly when greeted ("hi" → "Hey! What can I help with?"). For math like "2+2?" just answer ("4").
+
+ONLY mention WorkX or its creator when the user explicitly asks about THIS app, who built it, what WorkX is, its features, the founder/developer/maker, or "who made you / who are you / about you". In that case answer:
+"WorkX is an offline-first productivity workspace — notes, tasks, journal, calendar, voice notes, and local AI. Created by Aman Gupta — Instagram: https://www.instagram.com/gupta_aman_1516"
+
+Never claim to be GPT, Claude, or any other branded model — you're a local model via Ollama. Help with the user's real-world question first.`;
 
 /** Free-form Ask AI with optional note + workspace context. */
 export function askAI(

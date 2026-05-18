@@ -12,26 +12,28 @@ import type { Block } from '@/types/editor';
 import { saveMedia } from '@/lib/db';
 import { Image, X } from 'lucide-react';
 
-function SortableBlock({ block, index }: { block: Block; index: number }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: block.id,
-  });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <div ref={setNodeRef} style={style}>
-      <BlockComponent
-        block={block}
-        index={index}
-        isDragging={isDragging}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
-    </div>
-  );
-}
+const SortableBlock = React.forwardRef<HTMLDivElement, { block: Block; index: number }>(
+  function SortableBlock({ block, index }, _ref) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: block.id,
+    });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+    return (
+      <div ref={setNodeRef} style={style}>
+        <BlockComponent
+          block={block}
+          index={index}
+          isDragging={isDragging}
+          dragHandleProps={{ ...attributes, ...listeners }}
+        />
+      </div>
+    );
+  },
+);
 
 export default function BlockEditor() {
   const activePage = useEditorStore(s => s.activePage());

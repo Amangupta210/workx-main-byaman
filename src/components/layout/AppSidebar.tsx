@@ -4,7 +4,8 @@ import { useEditorStore } from '@/stores/editorStore';
 import { useUIStore } from '@/stores/uiStore';
 import {
   Plus, Trash2, ChevronRight, ChevronDown, Search,
-  PanelLeftClose, HelpCircle, Star, Moon, Sun, Download, Calendar as CalendarIcon, Home,
+  PanelLeftClose, HelpCircle, Star, Moon, Sun, Download, Calendar as CalendarIcon, Home, CheckSquare,
+  BookHeart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmojiPicker from '@/components/editor/EmojiPicker';
@@ -22,6 +23,9 @@ export default function AppSidebar() {
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const location = useLocation();
   const onCalendar = location.pathname.startsWith('/calendar');
+  const onTasks = location.pathname.startsWith('/tasks');
+  const onJournal = location.pathname.startsWith('/journal');
+  const onNotes = !onCalendar && !onTasks && !onJournal;
 
   // BUG FIXED: removed `hoveredPage` useState + onMouseEnter/onMouseLeave.
   // The old code conditionally rendered the action buttons only when
@@ -179,10 +183,17 @@ export default function AppSidebar() {
               </button>
               <Link
                 to="/"
-                className={`sidebar-item w-full text-sm ${!onCalendar ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+                className={`sidebar-item w-full text-sm ${onNotes ? 'sidebar-item-active' : 'text-muted-foreground'}`}
               >
                 <Home size={14} />
                 <span>Notes</span>
+              </Link>
+              <Link
+                to="/tasks"
+                className={`sidebar-item w-full text-sm ${onTasks ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+              >
+                <CheckSquare size={14} />
+                <span>Tasks</span>
               </Link>
               <Link
                 to="/calendar"
@@ -190,6 +201,13 @@ export default function AppSidebar() {
               >
                 <CalendarIcon size={14} />
                 <span>Calendar</span>
+              </Link>
+              <Link
+                to="/journal"
+                className={`sidebar-item w-full text-sm ${onJournal ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+              >
+                <BookHeart size={14} />
+                <span>Work X · Days</span>
               </Link>
             </div>
 

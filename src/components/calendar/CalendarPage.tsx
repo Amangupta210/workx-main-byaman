@@ -12,6 +12,7 @@ import {
   type CalendarEventRecord,
   type RichTaskRecord,
 } from '@/lib/aiDb';
+import ReminderStatusBadge from '@/components/reminders/ReminderStatusBadge';
 
 type View = 'month' | 'week' | 'day';
 
@@ -89,6 +90,9 @@ export default function CalendarPage() {
           className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
         ><Plus size={12} /> Event</button>
       </header>
+      <div className="border-b border-border px-4 py-2">
+        <ReminderStatusBadge />
+      </div>
 
       <div className="flex-1 overflow-auto p-3">
         {view === 'month' && <MonthGrid cursor={cursor} itemsForDay={itemsForDay} onPick={(d) => { setCursor(d); setView('day'); }} />}

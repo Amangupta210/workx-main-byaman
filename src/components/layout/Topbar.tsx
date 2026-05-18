@@ -6,6 +6,7 @@ import { exportPageAsMarkdown } from '@/lib/export';
 import { useAIStore } from '@/stores/aiStore';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import AIPageCreator from '@/components/ai/AIPageCreator';
+import ClockStatus from '@/components/layout/ClockStatus';
 
 export default function Topbar() {
   const activePage = useEditorStore(s => s.activePage());
@@ -48,6 +49,7 @@ export default function Topbar() {
         )}
       </div>
       <div className="flex items-center gap-1">
+        <ClockStatus />
         {activePage && (
           <>
             <button
