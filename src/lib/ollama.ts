@@ -92,8 +92,12 @@ export async function generate(opts: GenerateOptions): Promise<string> {
 
   const wantStream = Boolean(onChunk);
 
+  // keep_alive keeps the model loaded in memory between requests (much faster
+  // 2nd+ call). options.num_predict caps the output length to keep replies snappy.
+  const perfOpts = { keep_alive: '10m', options: { num_predict: 512, temperature: 0.6 } };
+
   const runNonStream = async (): Promise<string> => {
-    const res = await postGenerate(baseUrl, { model, prompt, system, stream: false }, signal);
+    const res = await postGenerate(baseUrl, { model, prompt, system, stream: false, ...perfOpts }, signal);
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new OllamaError(`Ollama request failed (${res.status}): ${text || res.statusText}`);
@@ -110,7 +114,7 @@ export async function generate(opts: GenerateOptions): Promise<string> {
   // Streaming path with graceful fallback.
   let res: Response;
   try {
-    res = await postGenerate(baseUrl, { model, prompt, system, stream: true }, signal);
+    res = await postGenerate(baseUrl, { model, prompt, system, stream: true, ...perfOpts }, signal);
   } catch (err) {
     if (signal?.aborted) throw err;
     // network failure on streaming attempt — try non-stream once
