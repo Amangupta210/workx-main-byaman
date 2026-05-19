@@ -18,7 +18,7 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { askAI, OllamaError } from '@/lib/ollama';
+import { askAI, OllamaError, pingOllama } from '@/lib/ollama';
 
 /* ───────────── PIN gate ───────────── */
 
@@ -199,6 +199,21 @@ function EntryModal({
     onClose();
   };
 
+  const localFallbackAnalysis = () => {
+    const words = content.trim().split(/\s+/).filter(Boolean).length;
+    const m = mood ? MOODS.find((x) => x.value === mood) : null;
+    const lines = [
+      `📓 Offline summary (Ollama unavailable)`,
+      m ? `• Mood: ${m.emoji} ${m.label}` : `• Mood: not set`,
+      `• Length: ${words} word${words === 1 ? '' : 's'}`,
+      content.trim()
+        ? `• First line: "${content.trim().split('\n')[0].slice(0, 120)}"`
+        : `• No journal text yet — try jotting one sentence.`,
+      `• Tip: start Ollama (\`ollama serve\`) for a deeper reflection.`,
+    ];
+    return lines.join('\n');
+  };
+
   const analyzeMood = async () => {
     if (!content.trim() && !mood) {
       toast.error('Add some content or pick a mood first');
@@ -207,15 +222,20 @@ function EntryModal({
     setAnalyzing(true);
     setAnalysis('');
     try {
+      const online = await pingOllama();
+      if (!online) {
+        setAnalysis(localFallbackAnalysis());
+        return;
+      }
       const m = mood ? `${mood}` : 'unspecified';
       const out = await askAI(
         `I journaled today. Mood: ${m}.\n\nEntry:\n${content || '(no text)'}\n\nPlease:\n1) Reflect briefly on what this entry suggests about my state of mind.\n2) Point out 1–2 patterns or triggers (be honest, not generic).\n3) Suggest 2 concrete next steps I can try tomorrow.\nKeep it warm, under 150 words.`,
         { onChunk: (c) => setAnalysis((p) => p + c) },
       );
-      if (!out) setAnalysis('(No response from local AI.)');
+      if (!out) setAnalysis(localFallbackAnalysis());
     } catch (err) {
       const msg = err instanceof OllamaError ? err.message : 'AI request failed';
-      setAnalysis(`⚠️ ${msg}`);
+      setAnalysis(`⚠️ ${msg}\n\n${localFallbackAnalysis()}`);
     } finally {
       setAnalyzing(false);
     }
@@ -286,7 +306,7 @@ function EntryModal({
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#c9a0dc] px-3 py-1.5 text-xs font-medium text-[#2a2438] hover:bg-[#d4b3f0] disabled:opacity-50"
             >
               {analyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              {analyzing ? 'Thinking…' : 'Analyze'}
+              {analyzing ? 'Thinking…' : analysis ? 'Re-run analysis' : 'Analyze'}
             </button>
           </div>
           {analysis ? (
@@ -782,12 +802,16 @@ function MoodDashboard({
   const insights = useMemo(() => {
     const scored = (arr: typeof last7) =>
       arr.map((x) => x.entry?.mood ? moodScore[x.entry.mood] : 0).filter((v) => v > 0);
+    // last30 is oldest→newest, so the previous week is the 7 days right
+    // before the most recent 7 (indices 16..22).
+    const prevWeekSlice = last30.slice(16, 23);
     const thisWeek = scored(last7);
-    const prevWeek = scored(last30.slice(0, 7));
+    const prevWeek = scored(prevWeekSlice);
     const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
     const aNow = avg(thisWeek);
     const aPrev = avg(prevWeek);
-    const delta = aNow && aPrev ? aNow - aPrev : 0;
+    // Only meaningful if both weeks have at least one logged mood.
+    const delta = thisWeek.length && prevWeek.length ? aNow - aPrev : 0;
 
     // Most-changed mood (count this week vs prior week)
     const countMoods = (arr: typeof last7) => {
@@ -796,7 +820,7 @@ function MoodDashboard({
       return c;
     };
     const cNow = countMoods(last7);
-    const cPrev = countMoods(last30.slice(0, 7));
+    const cPrev = countMoods(prevWeekSlice);
     const keys = new Set<Mood>([...cNow.keys(), ...cPrev.keys()]);
     let topMood: Mood | null = null;
     let topAbs = 0;
@@ -845,10 +869,10 @@ function MoodDashboard({
             <li className="flex items-start gap-2">
               <span className="text-base">{dirArrow}</span>
               <span>
-                Your mood <b>{dirWord}</b> vs last week
-                {insights.aPrev > 0 && (
-                  <> ({insights.aPrev.toFixed(1)} → <b>{insights.aNow.toFixed(1)}</b> / 5)</>
-                )}.
+                {insights.aPrev > 0
+                  ? <>Your mood <b>{dirWord}</b> vs last week ({insights.aPrev.toFixed(1)} → <b>{insights.aNow.toFixed(1)}</b> / 5).</>
+                  : <>This week's average is <b>{insights.aNow.toFixed(1)} / 5</b>. Log next week to see a true comparison.</>
+                }
               </span>
             </li>
             {topMeta && insights.topDelta !== 0 && (
