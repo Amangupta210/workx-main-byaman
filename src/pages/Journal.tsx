@@ -18,7 +18,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { askAI, OllamaError, pingOllama } from '@/lib/ollama';
+import { askAI, OllamaError, pingOllama, translateText, rewriteText, summarizeNote } from '@/lib/ollama';
+import OllamaStatusBadge from '@/components/ai/OllamaStatusBadge';
 
 /* ───────────── PIN gate ───────────── */
 
@@ -298,7 +299,7 @@ function EntryModal({
         <div className="mb-4 rounded-xl border border-[#c9a0dc]/20 bg-[#c9a0dc]/5 p-4">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <Brain size={14} className="text-[#c9a0dc]" /> Analyze my mood (local AI)
+              <Brain size={14} className="text-[#c9a0dc]" /> AI assistant (local Ollama)
             </div>
             <button
               onClick={analyzeMood}
@@ -306,13 +307,43 @@ function EntryModal({
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#c9a0dc] px-3 py-1.5 text-xs font-medium text-[#2a2438] hover:bg-[#d4b3f0] disabled:opacity-50"
             >
               {analyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              {analyzing ? 'Thinking…' : analysis ? 'Re-run analysis' : 'Analyze'}
+              {analyzing ? 'Thinking…' : analysis ? 'Re-run' : 'Analyze mood'}
             </button>
+          </div>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {[
+              { label: '🌍 Translate → English', run: (o: any) => translateText(content, 'English', o) },
+              { label: '🇮🇳 Translate → Hindi', run: (o: any) => translateText(content, 'Hindi', o) },
+              { label: '✍️ Rewrite (clear)', run: (o: any) => rewriteText(content, 'clear, warm and natural', o) },
+              { label: '✨ Polish', run: (o: any) => rewriteText(content, 'concise and well-structured, fix grammar', o) },
+              { label: '📝 Summarize', run: (o: any) => summarizeNote(content, o) },
+              { label: '🏷 Suggest tags', run: (o: any) => askAI(`Suggest 4-6 short hashtags (one word each, no #) for this journal entry. Return only a comma-separated list.\n\n${content}`, o) },
+            ].map((act) => (
+              <button
+                key={act.label}
+                disabled={analyzing || !content.trim()}
+                onClick={async () => {
+                  setAnalyzing(true); setAnalysis('');
+                  try {
+                    const online = await pingOllama();
+                    if (!online) { setAnalysis(localFallbackAnalysis()); return; }
+                    const out = await act.run({ onChunk: (c) => setAnalysis((p) => p + c) });
+                    if (!out) setAnalysis('(no response)');
+                  } catch (err) {
+                    const msg = err instanceof OllamaError ? err.message : 'AI request failed';
+                    setAnalysis(`⚠️ ${msg}`);
+                  } finally { setAnalyzing(false); }
+                }}
+                className="rounded-full bg-[#15111e] px-2.5 py-1 text-[11px] text-white/80 ring-1 ring-white/10 hover:bg-white/5 disabled:opacity-40"
+              >
+                {act.label}
+              </button>
+            ))}
           </div>
           {analysis ? (
             <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-white/85 font-sans">{analysis}</pre>
           ) : (
-            <p className="text-xs text-white/50">Runs locally via Ollama — your entry never leaves this device.</p>
+            <p className="text-xs text-white/50">Runs locally via Ollama — your entry never leaves this device. If Ollama is offline you'll get a quick local summary.</p>
           )}
         </div>
 
@@ -465,6 +496,7 @@ function JournalPage() {
             <p className="text-sm text-white/60">Your private journey log</p>
           </div>
           <div className="flex items-center gap-3 text-xs text-white/60">
+            <OllamaStatusBadge />
             <span>Theme:</span>
             <span className="h-7 w-7 rounded-full bg-[#f4c2c2] ring-2 ring-transparent hover:ring-white/30 cursor-pointer" />
             <span className="h-7 w-7 rounded-full bg-[#c9a0dc] ring-2 ring-white/40 cursor-pointer" />

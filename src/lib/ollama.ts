@@ -186,6 +186,24 @@ export function summarizeNote(text: string, opts: Partial<GenerateOptions> = {})
   });
 }
 
+/** Translate arbitrary text. */
+export function translateText(text: string, targetLang = 'English', opts: Partial<GenerateOptions> = {}) {
+  return generate({
+    system: `You are a precise translator. Translate the user's text into ${targetLang}. Preserve tone, meaning, and formatting. Output only the translation — no preamble.`,
+    prompt: text,
+    ...opts,
+  });
+}
+
+/** Rewrite/polish text. */
+export function rewriteText(text: string, style = 'clear and natural', opts: Partial<GenerateOptions> = {}) {
+  return generate({
+    system: `You are a thoughtful editor. Rewrite the user's text to be ${style}. Keep the meaning, fix grammar, tighten phrasing. Output only the rewritten version.`,
+    prompt: text,
+    ...opts,
+  });
+}
+
 /** Identity / branding rule appended to every system prompt. */
 export const WORKX_IDENTITY = `You are a helpful, friendly, knowledgeable AI assistant running locally inside WorkX (an offline-first productivity app).
 

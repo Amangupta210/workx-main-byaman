@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AppSidebar from '@/components/layout/AppSidebar';
 import AIPanel from '@/components/ai/AIPanel';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -13,6 +13,7 @@ import {
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { Bell, Plus, Trash2, Check, FlaskConical, Sparkles, Loader2, X } from 'lucide-react';
 import ReminderStatusBadge from '@/components/reminders/ReminderStatusBadge';
+import OllamaStatusBadge from '@/components/ai/OllamaStatusBadge';
 import { getDefaultReminderMins, triggerTestReminder } from '@/lib/reminders';
 import { toast } from 'sonner';
 import { generateRichTasks, OllamaError, pingOllama } from '@/lib/ollama';
@@ -92,6 +93,7 @@ function TasksPage() {
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
         <h1 className="text-lg font-semibold">✅ Tasks</h1>
+        <OllamaStatusBadge />
         <div className="ml-auto flex items-center gap-3">
           <button
             onClick={() => setAiOpen(true)}
@@ -163,27 +165,49 @@ function TasksPage() {
 function AITaskModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'checking' | 'generating' | 'fallback'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    pingOllama().then((ok) => { if (!cancel) setOnline(ok); });
+    return () => { cancel = true; };
+  }, []);
+
+  const offlineFallback = async (t: string) => {
+    const lines = t.split(/\n|;|·|•/).map((l) => l.replace(/^[-*\d.)\s]+/, '').trim()).filter(Boolean);
+    if (!lines.length) throw new Error('Nothing to add — write at least one line.');
+    for (const title of lines) {
+      await addRichTask({ pageId: null, title, due: null, reminderMinsBefore: null,
+        priority: 'med', labels: [], recurrence: 'none', completed: false });
+    }
+    return lines.length;
+  };
 
   const run = async () => {
     const t = text.trim();
     if (!t || busy) return;
-    setBusy(true);
+    setBusy(true); setError(null); setPhase('checking');
     try {
-      const online = await pingOllama();
-      if (!online) {
-        // Local fallback: split lines into simple tasks.
-        const lines = t.split(/\n|;|·|•/).map((l) => l.replace(/^[-*\d.)\s]+/, '').trim()).filter(Boolean);
-        if (!lines.length) throw new Error('Nothing to add');
-        for (const title of lines) {
-          await addRichTask({ pageId: null, title, due: null, reminderMinsBefore: null,
-            priority: 'med', labels: [], recurrence: 'none', completed: false });
-        }
-        toast.success(`Added ${lines.length} task${lines.length === 1 ? '' : 's'} (offline fallback)`);
+      const isOnline = await pingOllama();
+      setOnline(isOnline);
+      if (!isOnline) {
+        setPhase('fallback');
+        const n = await offlineFallback(t);
+        toast.success(`Added ${n} task${n === 1 ? '' : 's'} (offline fallback)`);
         onClose();
         return;
       }
+      setPhase('generating');
       const tasks = await generateRichTasks(t);
-      if (!tasks.length) { toast.error('AI returned no tasks'); return; }
+      if (!tasks.length) {
+        // AI returned nothing parseable → degrade to fallback rather than failing.
+        const n = await offlineFallback(t);
+        toast.success(`AI returned no tasks — added ${n} from your text instead`);
+        onClose();
+        return;
+      }
       for (const task of tasks) {
         await addRichTask({
           pageId: null,
@@ -199,11 +223,17 @@ function AITaskModal({ onClose }: { onClose: () => void }) {
       toast.success(`Added ${tasks.length} AI-generated task${tasks.length === 1 ? '' : 's'}`);
       onClose();
     } catch (err) {
-      toast.error(err instanceof OllamaError ? err.message : (err as Error).message || 'Failed to generate tasks');
+      const msg = err instanceof OllamaError ? err.message : (err as Error).message || 'Failed to generate tasks';
+      setError(msg);
     } finally {
-      setBusy(false);
+      setBusy(false); setPhase('idle');
     }
   };
+
+  const phaseLabel =
+    phase === 'checking' ? 'Checking local AI…' :
+    phase === 'generating' ? 'Generating with Ollama…' :
+    phase === 'fallback' ? 'Adding offline…' : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -214,21 +244,65 @@ function AITaskModal({ onClose }: { onClose: () => void }) {
           </h2>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-secondary"><X size={14} /></button>
         </div>
+
+        {online === false && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+            <Loader2 size={12} className="mt-0.5 shrink-0" />
+            <div>
+              <div className="font-medium text-amber-100">Ollama is offline</div>
+              Start it with <code className="rounded bg-black/30 px-1">ollama serve</code> (set <code className="rounded bg-black/30 px-1">OLLAMA_ORIGINS=*</code>). I'll still add each line as a plain task.
+            </div>
+          </div>
+        )}
+        {online === true && (
+          <div className="mb-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] text-emerald-200">
+            ✓ Local AI ready — due dates, priority, labels & recurrence will be inferred.
+          </div>
+        )}
+
         <textarea
           autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          disabled={busy}
           placeholder="e.g. Prep launch deck by Friday 5pm, daily standup at 9am, call dentist tomorrow…"
-          className="w-full resize-none rounded-md border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-none rounded-md border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
         />
-        <p className="mt-2 text-[11px] text-muted-foreground">Infers due dates, priority, recurrence & reminders from your text. If Ollama is offline, each line becomes a simple task.</p>
+
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[
+            'Plan my week: launch deck Friday 5pm, gym Mon/Wed/Fri 7am, call mom Sunday',
+            'Daily standup at 9am, weekly review every Friday 4pm, dentist next Tuesday',
+            'Pay rent on the 1st, water plants Tue & Sat, ship MVP by next Friday',
+          ].map((ex) => (
+            <button key={ex} disabled={busy}
+              onClick={() => setText(ex)}
+              className="rounded-full border border-border bg-background px-2 py-0.5 text-[10.5px] text-muted-foreground hover:bg-secondary disabled:opacity-40">
+              {ex.split(':')[0]}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+            <div className="font-medium">Couldn't generate tasks</div>
+            {error}
+          </div>
+        )}
+
+        {phase !== 'idle' && (
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Loader2 size={11} className="animate-spin" /> {phaseLabel}
+          </div>
+        )}
+
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary">Cancel</button>
+          <button onClick={onClose} disabled={busy} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-50">Cancel</button>
           <button onClick={run} disabled={!text.trim() || busy}
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            {busy ? 'Generating…' : 'Generate'}
+            {busy ? 'Working…' : online === false ? 'Add offline' : 'Generate'}
           </button>
         </div>
       </div>
