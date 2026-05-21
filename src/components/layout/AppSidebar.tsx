@@ -5,7 +5,8 @@ import { useUIStore } from '@/stores/uiStore';
 import {
   Plus, Trash2, ChevronRight, ChevronDown, Search,
   PanelLeftClose, HelpCircle, Star, Moon, Sun, Download, Calendar as CalendarIcon, Home, CheckSquare,
-  BookHeart,
+  BookHeart, StickyNote,
+
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmojiPicker from '@/components/editor/EmojiPicker';
@@ -25,7 +26,9 @@ export default function AppSidebar() {
   const onCalendar = location.pathname.startsWith('/calendar');
   const onTasks = location.pathname.startsWith('/tasks');
   const onJournal = location.pathname.startsWith('/journal');
-  const onNotes = !onCalendar && !onTasks && !onJournal;
+  const onNotesPage = location.pathname.startsWith('/notes');
+  const onNotes = !onCalendar && !onTasks && !onJournal && !onNotesPage;
+
 
   // BUG FIXED: removed `hoveredPage` useState + onMouseEnter/onMouseLeave.
   // The old code conditionally rendered the action buttons only when
@@ -209,6 +212,14 @@ export default function AppSidebar() {
                 <BookHeart size={14} />
                 <span>Work X · Days</span>
               </Link>
+              <Link
+                to="/notes"
+                className={`sidebar-item w-full text-sm ${onNotesPage ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+              >
+                <StickyNote size={14} />
+                <span>Sticky Notes</span>
+              </Link>
+
             </div>
 
             {/* Favorites */}

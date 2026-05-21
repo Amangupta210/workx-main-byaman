@@ -189,7 +189,14 @@ export function summarizeNote(text: string, opts: Partial<GenerateOptions> = {})
 /** Translate arbitrary text. */
 export function translateText(text: string, targetLang = 'English', opts: Partial<GenerateOptions> = {}) {
   return generate({
-    system: `You are a precise translator. Translate the user's text into ${targetLang}. Preserve tone, meaning, and formatting. Output only the translation — no preamble.`,
+    system:
+      `You are a professional bilingual translator. Translate the user's text into ${targetLang}.\n` +
+      `Rules:\n` +
+      `- Output ONLY the translation. No preamble, no notes, no quotes, no language labels.\n` +
+      `- Preserve meaning, tone, line breaks, lists, and punctuation exactly.\n` +
+      `- Keep proper nouns, code, URLs, @handles and #hashtags unchanged.\n` +
+      `- If the text is already in ${targetLang}, return it unchanged.\n` +
+      `- Use natural, fluent ${targetLang} — not literal word-for-word.`,
     prompt: text,
     ...opts,
   });

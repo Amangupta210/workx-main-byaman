@@ -8,6 +8,8 @@ import NotFound from "./pages/NotFound.tsx";
 import Calendar from "./pages/Calendar.tsx";
 import Tasks from "./pages/Tasks.tsx";
 import Journal from "./pages/Journal.tsx";
+import Notes from "./pages/Notes.tsx";
+
 
 
 const queryClient = new QueryClient();
@@ -23,6 +25,8 @@ const App = () => (
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/journal" element={<Journal />} />
+          <Route path="/notes" element={<Notes />} />
+
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
