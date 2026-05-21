@@ -14,12 +14,14 @@ import { saveMedia, loadMedia } from '@/lib/db';
 import {
   Search, Plus, X, BookOpen, Calendar as CalendarIcon, Image as ImageIcon,
   Save, Sparkles, RefreshCw, Heart, Lock, Settings, ArrowLeft, Trash2, Brain, Loader2,
+  Download,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { askAI, OllamaError, pingOllama, translateText, rewriteText, summarizeNote } from '@/lib/ollama';
 import OllamaStatusBadge from '@/components/ai/OllamaStatusBadge';
+import { exportEntriesToPdf } from '@/lib/journalPdf';
 
 /* ───────────── PIN gate ───────────── */
 
@@ -497,11 +499,24 @@ function JournalPage() {
           </div>
           <div className="flex items-center gap-3 text-xs text-white/60">
             <OllamaStatusBadge />
-            <span>Theme:</span>
-            <span className="h-7 w-7 rounded-full bg-[#f4c2c2] ring-2 ring-transparent hover:ring-white/30 cursor-pointer" />
-            <span className="h-7 w-7 rounded-full bg-[#c9a0dc] ring-2 ring-white/40 cursor-pointer" />
-            <span className="h-7 w-7 rounded-full bg-white ring-2 ring-transparent hover:ring-white/30 cursor-pointer" />
-            <Link to="/" className="ml-3 inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5 hover:bg-white/10">
+            <button
+              onClick={async () => {
+                const list = filtered.length ? filtered : entries;
+                if (!list.length) { toast.error('No entries to export'); return; }
+                const t = toast.loading(`Exporting ${list.length} entr${list.length === 1 ? 'y' : 'ies'} to PDF…`);
+                try {
+                  await exportEntriesToPdf(list, `work-x-days-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                  toast.success('PDF downloaded', { id: t });
+                } catch (err) {
+                  toast.error((err as Error).message || 'Export failed', { id: t });
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1.5 text-white/80 hover:bg-white/10"
+              title="Export visible entries as a clean PDF with photos"
+            >
+              <Download size={12} /> Export PDF
+            </button>
+            <Link to="/" className="ml-1 inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5 hover:bg-white/10">
               <ArrowLeft size={12} /> Notes
             </Link>
           </div>
