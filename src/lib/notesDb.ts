@@ -7,6 +7,8 @@ export type NoteColor =
   | 'default' | 'yellow' | 'orange' | 'red' | 'pink'
   | 'purple' | 'blue' | 'teal' | 'green' | 'gray';
 
+export type NoteSort = 'smart' | 'updated' | 'created' | 'title';
+
 export interface StickyNote {
   id?: number;
   title: string;
@@ -55,12 +57,20 @@ export async function deleteNote(id: number): Promise<void> {
   await notesDb.notes.delete(id);
 }
 
-export async function listNotes(): Promise<StickyNote[]> {
+export async function listNotes(sort: NoteSort = 'smart'): Promise<StickyNote[]> {
   const all = await notesDb.notes.toArray();
-  return all.sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return b.updatedAt - a.updatedAt;
-  });
+  const cmp = (a: StickyNote, b: StickyNote): number => {
+    switch (sort) {
+      case 'updated': return b.updatedAt - a.updatedAt;
+      case 'created': return b.createdAt - a.createdAt;
+      case 'title':   return (a.title || '').localeCompare(b.title || '');
+      case 'smart':
+      default:
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return b.updatedAt - a.updatedAt;
+    }
+  };
+  return all.sort(cmp);
 }
 
 export const NOTE_COLOR_STYLES: Record<NoteColor, { bg: string; ring: string; chip: string }> = {

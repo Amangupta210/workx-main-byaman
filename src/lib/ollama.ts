@@ -410,3 +410,39 @@ export async function organizeWorkspace(
   };
   return parsed.map(sanitize).filter((n): n is AIPagePlanNode => !!n);
 }
+
+/**
+ * Generate multiple sticky notes from a single prompt.
+ */
+export interface AIStickyNote { title: string; content: string; tags?: string[] }
+
+export async function generateStickyNotes(
+  topic: string,
+  count = 5,
+  opts: Partial<GenerateOptions> = {},
+): Promise<AIStickyNote[]> {
+  const raw = await generate({
+    system:
+      WORKX_IDENTITY +
+      `\nYou create sticky notes. Reply with ONLY a JSON array, no prose, no markdown fences. Schema:
+[{"title": string (<=60 chars), "content": string (1-4 short lines), "tags": string[] (0-4 single words, no #)}]
+Make each note self-contained, useful, and specific. No duplicates.`,
+    prompt: `Create exactly ${count} sticky notes about: ${topic}`,
+    ...opts,
+  });
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+  const slice = start !== -1 && end !== -1 ? cleaned.slice(start, end + 1) : cleaned;
+  let parsed: unknown;
+  try { parsed = JSON.parse(slice); } catch { return []; }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((t): t is Record<string, unknown> => !!t && typeof t === 'object')
+    .map((t) => ({
+      title: String(t.title ?? '').trim().slice(0, 80),
+      content: String(t.content ?? '').trim().slice(0, 1200),
+      tags: Array.isArray(t.tags) ? t.tags.map((x) => String(x).replace(/^#/, '').trim()).filter(Boolean).slice(0, 6) : [],
+    }))
+    .filter((n) => n.title || n.content);
+}

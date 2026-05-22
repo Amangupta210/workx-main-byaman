@@ -499,23 +499,7 @@ function JournalPage() {
           </div>
           <div className="flex items-center gap-3 text-xs text-white/60">
             <OllamaStatusBadge />
-            <button
-              onClick={async () => {
-                const list = filtered.length ? filtered : entries;
-                if (!list.length) { toast.error('No entries to export'); return; }
-                const t = toast.loading(`Exporting ${list.length} entr${list.length === 1 ? 'y' : 'ies'} to PDF…`);
-                try {
-                  await exportEntriesToPdf(list, `work-x-days-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-                  toast.success('PDF downloaded', { id: t });
-                } catch (err) {
-                  toast.error((err as Error).message || 'Export failed', { id: t });
-                }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1.5 text-white/80 hover:bg-white/10"
-              title="Export visible entries as a clean PDF with photos"
-            >
-              <Download size={12} /> Export PDF
-            </button>
+            <ExportMenu entries={entries} filtered={filtered} />
             <Link to="/" className="ml-1 inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5 hover:bg-white/10">
               <ArrowLeft size={12} /> Notes
             </Link>
@@ -663,6 +647,123 @@ function StatCard({ icon, value, label }: { icon: React.ReactNode; value: number
       <div className="mb-2 flex justify-center">{icon}</div>
       <div className="text-3xl font-bold">{value}</div>
       <div className="mt-1 text-sm text-white/60">{label}</div>
+    </div>
+  );
+}
+
+/* ───────────── Export menu (current view / all / date range / pick days) ───────────── */
+
+function ExportMenu({ entries, filtered }: { entries: JournalEntry[]; filtered: JournalEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'current' | 'all' | 'range' | 'pick'>('current');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  const runExport = async (list: JournalEntry[], label: string) => {
+    if (!list.length) { toast.error('No entries to export'); return; }
+    const t = toast.loading(`Exporting ${list.length} entr${list.length === 1 ? 'y' : 'ies'}…`);
+    try {
+      await exportEntriesToPdf(list, `work-x-days-${label}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      toast.success('PDF downloaded', { id: t });
+      setOpen(false);
+    } catch (err) {
+      toast.error((err as Error).message || 'Export failed', { id: t });
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (mode === 'current') return runExport(filtered.length ? filtered : entries, 'view');
+    if (mode === 'all') return runExport(entries, 'all');
+    if (mode === 'range') {
+      if (!from || !to) { toast.error('Pick a from and to date'); return; }
+      const list = entries.filter((e) => e.dateKey >= from && e.dateKey <= to);
+      return runExport(list, `${from}_to_${to}`);
+    }
+    // pick
+    const list = entries.filter((e) => picked.has(e.dateKey));
+    return runExport(list, 'selected');
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1.5 text-white/80 hover:bg-white/10"
+        title="Export PDF — pick days or range"
+      >
+        <Download size={12} /> Export PDF
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-white/10 bg-[#1f1a2b] p-3 text-xs text-white shadow-2xl">
+          <div className="mb-2 text-[11px] uppercase tracking-wider text-white/50">Export scope</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              ['current', `Current view (${filtered.length || entries.length})`],
+              ['all', `All entries (${entries.length})`],
+              ['range', 'Date range'],
+              ['pick', 'Pick specific days'],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setMode(k)}
+                className={`rounded-md px-2 py-1.5 text-left ${mode === k ? 'bg-[#c9a0dc] text-[#2a2438] font-medium' : 'bg-white/5 hover:bg-white/10'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'range' && (
+            <div className="mt-3 flex items-center gap-2">
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 rounded-md bg-[#15111e] px-2 py-1.5 text-white outline-none ring-1 ring-white/10" />
+              <span className="text-white/40">→</span>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="flex-1 rounded-md bg-[#15111e] px-2 py-1.5 text-white outline-none ring-1 ring-white/10" />
+            </div>
+          )}
+
+          {mode === 'pick' && (
+            <div className="mt-3 max-h-48 overflow-auto rounded-md bg-[#15111e] p-2 ring-1 ring-white/10">
+              {entries.length === 0 ? (
+                <p className="text-white/40">No entries yet.</p>
+              ) : entries.map((e) => {
+                const checked = picked.has(e.dateKey);
+                return (
+                  <label key={e.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = new Set(picked);
+                        checked ? next.delete(e.dateKey) : next.add(e.dateKey);
+                        setPicked(next);
+                      }}
+                    />
+                    <span className="text-white/80">{format(new Date(e.date), 'EEE, MMM d, yyyy')}</span>
+                    <span className="ml-auto truncate text-white/40">{e.title || e.content?.slice(0, 24) || '—'}</span>
+                  </label>
+                );
+              })}
+              {entries.length > 0 && (
+                <div className="mt-2 flex gap-2 text-[11px]">
+                  <button onClick={() => setPicked(new Set(entries.map((e) => e.dateKey)))} className="text-[#c9a0dc] hover:underline">Select all</button>
+                  <button onClick={() => setPicked(new Set())} className="text-white/60 hover:underline">Clear</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button onClick={() => setOpen(false)} className="rounded-md px-2 py-1 text-white/60 hover:bg-white/10">Cancel</button>
+            <button
+              onClick={handleConfirm}
+              className="rounded-md bg-[#c9a0dc] px-3 py-1 font-medium text-[#2a2438] hover:bg-[#d4b3f0]"
+            >
+              Export PDF
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
