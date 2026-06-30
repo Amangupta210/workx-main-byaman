@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
 import { useUIStore } from '@/stores/uiStore';
-import { Menu, Search, Moon, Sun, Download, Sparkles, ListChecks, FileText, Mic, Wand2 } from 'lucide-react';
+import { Menu, Search, Moon, Sun, Download, Sparkles, ListChecks, FileText, Mic, Wand2, FileImage, Loader2 } from 'lucide-react';
 import { exportPageAsMarkdown } from '@/lib/export';
+import { exportPageAsPdf } from '@/lib/pagePdf';
 import { useAIStore } from '@/stores/aiStore';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import AIPageCreator from '@/components/ai/AIPageCreator';
 import ClockStatus from '@/components/layout/ClockStatus';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 export default function Topbar() {
   const activePage = useEditorStore(s => s.activePage());
@@ -14,6 +24,22 @@ export default function Topbar() {
   const { summarizePage, generateTasksForPage, loading } = useAIStore();
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pageCreatorOpen, setPageCreatorOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!activePage) return;
+    setExporting(true);
+    const t = toast.loading('Generating high-quality PDF…');
+    try {
+      await exportPageAsPdf(activePage);
+      toast.success('PDF downloaded', { id: t });
+    } catch (e) {
+      console.error(e);
+      toast.error('PDF export failed', { id: t, description: (e as Error)?.message });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const noteText = activePage?.blocks
     .filter(b => b.type !== 'divider')
@@ -80,13 +106,29 @@ export default function Topbar() {
           <Search size={15} />
         </button>
         {activePage && (
-          <button
-            onClick={() => activePage && exportPageAsMarkdown(activePage)}
-            className="p-1.5 rounded hover:bg-secondary text-muted-foreground transition-colors"
-            title="Export as Markdown"
-          >
-            <Download size={15} />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1.5 rounded hover:bg-secondary text-muted-foreground transition-colors disabled:opacity-50"
+                title="Export page"
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Export “{activePage.title || 'Untitled'}”</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => exportPageAsMarkdown(activePage)}>
+                <FileText size={14} className="mr-2" />
+                Markdown (.md)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleExportPdf} disabled={exporting}>
+                <FileImage size={14} className="mr-2" />
+                High-quality PDF (with images)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         <button
           onClick={() => setVoiceOpen(true)}

@@ -139,6 +139,14 @@ export default function BlockEditor() {
           >
             Aman Gupta
           </a>
+          {' & '}
+          <a
+            href="https://www.instagram.com/_.s.aura.b._/"
+            target="_blank" rel="noopener noreferrer"
+            className="hover:text-muted-foreground transition-colors underline decoration-muted-foreground/20 hover:decoration-muted-foreground/40"
+          >
+            Saurab Negi
+          </a>
         </p>
       </div>
     </div>

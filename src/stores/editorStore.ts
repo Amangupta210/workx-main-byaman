@@ -112,7 +112,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         createBlock('text', 'Add todos with due dates inline — they show up in this workspace and can be tracked by AI.'),
         createBlock('divider'),
         createBlock('heading3', '👤 About'),
-        createBlock('text', 'WorkX was created by Aman Gupta. Instagram: https://www.instagram.com/gupta_aman_1516'),
+        createBlock('text', 'WorkX was created by Aman Gupta (https://www.instagram.com/gupta_aman_1516) and Saurab Negi (https://www.instagram.com/_.s.aura.b._/).'),
       ];
       await savePageToDB(defaultPage);
       set({ pages: [defaultPage], activePageId: defaultPage.id });

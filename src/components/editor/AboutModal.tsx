@@ -99,7 +99,10 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
           </section>
           <div className="pt-2 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
-              Made with ❤️ by <a href="https://www.instagram.com/gupta_aman_1516" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Aman Gupta</a>
+              Made with ❤️ by{' '}
+              <a href="https://www.instagram.com/gupta_aman_1516" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Aman Gupta</a>
+              {' & '}
+              <a href="https://www.instagram.com/_.s.aura.b._/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Saurab Negi</a>
             </p>
           </div>
         </div>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Pin, PinOff, Trash2, Plus, Search, Archive, ArchiveRestore,
   Sparkles, X, Palette, Tag as TagIcon, Loader2, Home, ArrowUpDown, Layers, CloudOff,
+  Download, FileText, FileDown, CheckCircle2, Circle,
 } from 'lucide-react';
 import {
   listNotes, createNote, updateNote, deleteNote,
@@ -11,7 +12,12 @@ import {
 import { askAI, summarizeNote, pingOllama, OllamaError, generateStickyNotes } from '@/lib/ollama';
 import OllamaStatusBadge from '@/components/ai/OllamaStatusBadge';
 import { useToast } from '@/hooks/use-toast';
-import { enqueue, registerHandler, startQueuePoller, queueSize } from '@/lib/aiQueue';
+import {
+  enqueue, registerHandler, startQueuePoller, queueSize, failedSize, subscribe,
+} from '@/lib/aiQueue';
+import QueuePanel from '@/components/notes/QueuePanel';
+import { exportNotesToPdf, exportNotesToTxt, type ExportProgress } from '@/lib/notesExport';
+import { Progress } from '@/components/ui/progress';
 
 const COLORS: NoteColor[] = ['default', 'yellow', 'orange', 'red', 'pink', 'purple', 'blue', 'teal', 'green', 'gray'];
 const SORTS: { value: NoteSort; label: string }[] = [
@@ -30,13 +36,49 @@ export default function NotesPage() {
   const [sort, setSort] = useState<NoteSort>('smart');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [queued, setQueued] = useState(0);
+  const [failed, setFailed] = useState(0);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [exportProgress, setExportProgress] = useState<{ pct: number; label?: string } | null>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
   const refresh = async () => {
     setNotes(await listNotes(sort));
     setQueued(queueSize());
+    setFailed(failedSize());
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [sort]);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+  const selectMode = selected.size > 0;
+
+  const runExport = async (kind: 'pdf' | 'txt', scope: StickyNote[], filename: string) => {
+    if (!scope.length) {
+      toast({ title: 'Nothing to export', description: 'No notes match this scope.', variant: 'destructive' });
+      return;
+    }
+    setExportProgress({ pct: 0, label: 'Starting…' });
+    const onProgress: ExportProgress = (pct, label) => setExportProgress({ pct, label });
+    try {
+      if (kind === 'pdf') exportNotesToPdf(scope, filename, onProgress);
+      else exportNotesToTxt(scope, filename, onProgress);
+      toast({ title: `${kind.toUpperCase()} ready`, description: `${scope.length} note${scope.length === 1 ? '' : 's'} → ${filename}` });
+    } catch (e) {
+      toast({ title: 'Export failed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setTimeout(() => setExportProgress(null), 600);
+    }
+  };
+
 
   // Register handlers for offline-queued AI jobs; drain when Ollama is back.
   useEffect(() => {
@@ -51,12 +93,21 @@ export default function NotesPage() {
       for (const n of items) await createNote({ title: n.title, content: n.content, tags: n.tags ?? [] });
     });
     startQueuePoller(15000);
-    const t = setInterval(async () => {
-      const before = queueSize();
-      if (before > 0) { await refresh(); }
+    const unsub = subscribe(() => {
       setQueued(queueSize());
+      setFailed(failedSize());
+      void refresh();
+    });
+    const t = setInterval(async () => {
+      setQueued(queueSize());
+      setFailed(failedSize());
     }, 4000);
-    return () => clearInterval(t);
+    // Close export menu on outside click
+    const onDocClick = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => { clearInterval(t); unsub(); document.removeEventListener('mousedown', onDocClick); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -139,13 +190,18 @@ export default function NotesPage() {
           </Link>
           <h1 className="text-lg font-semibold">Sticky Notes</h1>
           <OllamaStatusBadge className="ml-1" />
-          {queued > 0 && (
-            <span
-              title="AI jobs waiting for Ollama to come back online"
-              className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300"
+          {(queued > 0 || failed > 0) && (
+            <button
+              onClick={() => setQueueOpen(true)}
+              title="Manage queued AI jobs"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] hover:opacity-80 ${
+                failed > 0
+                  ? 'bg-destructive/15 text-destructive'
+                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+              }`}
             >
-              <CloudOff size={11} /> {queued} queued
-            </span>
+              <CloudOff size={11} /> {queued} queued{failed > 0 ? ` · ${failed} failed` : ''}
+            </button>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="relative">
@@ -177,8 +233,118 @@ export default function NotesPage() {
               {showArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
               {showArchived ? 'Archived' : 'Active'}
             </button>
+            <div className="relative" ref={exportRef}>
+              <button
+                onClick={() => setExportOpen((v) => !v)}
+                disabled={notes.length === 0}
+                aria-haspopup="menu"
+                aria-expanded={exportOpen}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input px-3 text-sm hover:bg-accent disabled:opacity-50"
+                title="Export notes"
+              >
+                <Download size={14} /> Export
+              </button>
+              {exportOpen && (
+                <div role="menu" className="absolute right-0 z-30 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
+                  <button
+                    role="menuitem"
+                    onClick={() => { setExportOpen(false); void runExport('pdf', filtered.length ? filtered : notes, 'sticky-notes.pdf'); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <FileDown size={14} /> Current view (PDF)
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => { setExportOpen(false); void runExport('pdf', notes, 'sticky-notes-all.pdf'); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <FileDown size={14} /> All notes (PDF)
+                  </button>
+                  <div className="my-1 border-t border-border" />
+                  <button
+                    role="menuitem"
+                    onClick={() => { setExportOpen(false); void runExport('txt', filtered.length ? filtered : notes, 'sticky-notes.txt'); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <FileText size={14} /> Current view (TXT)
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => { setExportOpen(false); void runExport('txt', notes, 'sticky-notes-all.txt'); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <FileText size={14} /> All notes (TXT)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        {selectMode && (
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 border-t border-border bg-primary/5 px-4 py-2 text-xs">
+            <CheckCircle2 size={14} className="text-primary" />
+            <span className="font-medium">{selected.size} selected</span>
+            <button
+              onClick={() => setSelected(new Set(filtered.map((n) => n.id!).filter(Boolean)))}
+              className="rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+            >Select all in view</button>
+            <button
+              onClick={clearSelection}
+              className="rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+            >Clear</button>
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={async () => {
+                  const ids = Array.from(selected);
+                  const anyUnpinned = notes.some((n) => ids.includes(n.id!) && !n.pinned);
+                  await Promise.all(ids.map((id) => updateNote(id, { pinned: anyUnpinned })));
+                  clearSelection(); await refresh();
+                  toast({ title: anyUnpinned ? 'Pinned' : 'Unpinned', description: `${ids.length} note${ids.length === 1 ? '' : 's'}` });
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+              ><Pin size={12} /> Pin/Unpin</button>
+              <button
+                onClick={async () => {
+                  const ids = Array.from(selected);
+                  await Promise.all(ids.map((id) => updateNote(id, { archived: !showArchived, pinned: false })));
+                  clearSelection(); await refresh();
+                  toast({ title: showArchived ? 'Restored' : 'Archived', description: `${ids.length} note${ids.length === 1 ? '' : 's'}` });
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+              >{showArchived ? <ArchiveRestore size={12} /> : <Archive size={12} />} {showArchived ? 'Restore' : 'Archive'}</button>
+              <button
+                onClick={() => { setExportOpen(false); const scope = notes.filter((n) => selected.has(n.id!)); void runExport('pdf', scope, `sticky-notes-selection.pdf`); }}
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+              ><FileDown size={12} /> Export PDF</button>
+              <button
+                onClick={() => { const scope = notes.filter((n) => selected.has(n.id!)); void runExport('txt', scope, `sticky-notes-selection.txt`); }}
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2 py-1 hover:bg-accent"
+              ><FileText size={12} /> Export TXT</button>
+              <button
+                onClick={async () => {
+                  const ids = Array.from(selected);
+                  if (!confirm(`Delete ${ids.length} note${ids.length === 1 ? '' : 's'}?`)) return;
+                  await Promise.all(ids.map((id) => deleteNote(id)));
+                  clearSelection(); await refresh();
+                  toast({ title: 'Deleted', description: `${ids.length} note${ids.length === 1 ? '' : 's'} removed` });
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-background px-2 py-1 text-destructive hover:bg-destructive/10"
+              ><Trash2 size={12} /> Delete</button>
+            </div>
+          </div>
+        )}
+        {exportProgress && (
+          <div className="mx-auto flex max-w-6xl items-center gap-3 border-t border-border bg-background/95 px-4 py-2">
+            <Loader2 size={14} className="animate-spin text-primary" />
+            <div className="flex-1">
+              <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Exporting… {exportProgress.label ?? ''}</span>
+                <span>{exportProgress.pct}%</span>
+              </div>
+              <Progress value={exportProgress.pct} className="h-1.5" />
+            </div>
+          </div>
+        )}
         {allTags.length > 0 && (
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-1.5 px-4 pb-3">
             <TagIcon size={11} className="text-muted-foreground" />
@@ -209,13 +375,17 @@ export default function NotesPage() {
         )}
 
         {pinned.length > 0 && (
-          <Section title="Pinned" notes={pinned} onOpen={setEditing} onChange={refresh} />
+          <Section title="Pinned" notes={pinned} onOpen={setEditing} onChange={refresh}
+            selected={selected} onToggleSelect={toggleSelect} selectMode={selectMode} />
         )}
         <Section
           title={pinned.length > 0 ? 'Others' : showArchived ? 'Archived' : 'Notes'}
           notes={others}
           onOpen={setEditing}
           onChange={refresh}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          selectMode={selectMode}
           empty={
             filtered.length === 0
               ? showArchived ? 'No archived notes yet.' : 'Capture your first thought above.'
@@ -231,18 +401,22 @@ export default function NotesPage() {
           onSaved={async () => { await refresh(); setEditing(null); }}
         />
       )}
+      <QueuePanel open={queueOpen} onClose={() => setQueueOpen(false)} />
     </div>
   );
 }
 
 function Section({
-  title, notes, onOpen, onChange, empty,
+  title, notes, onOpen, onChange, empty, selected, onToggleSelect, selectMode,
 }: {
   title: string;
   notes: StickyNote[];
   onOpen: (n: StickyNote) => void;
   onChange: () => void | Promise<void>;
   empty?: string;
+  selected: Set<number>;
+  onToggleSelect: (id: number) => void;
+  selectMode: boolean;
 }) {
   if (notes.length === 0 && !empty) return null;
   return (
@@ -253,7 +427,15 @@ function Section({
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {notes.map((n) => (
-            <NoteCard key={n.id} note={n} onOpen={() => onOpen(n)} onChange={onChange} />
+            <NoteCard
+              key={n.id}
+              note={n}
+              onOpen={() => onOpen(n)}
+              onChange={onChange}
+              selected={selected.has(n.id!)}
+              onToggleSelect={() => onToggleSelect(n.id!)}
+              selectMode={selectMode}
+            />
           ))}
         </div>
       )}
@@ -262,8 +444,15 @@ function Section({
 }
 
 function NoteCard({
-  note, onOpen, onChange,
-}: { note: StickyNote; onOpen: () => void; onChange: () => void | Promise<void> }) {
+  note, onOpen, onChange, selected, onToggleSelect, selectMode,
+}: {
+  note: StickyNote;
+  onOpen: () => void;
+  onChange: () => void | Promise<void>;
+  selected: boolean;
+  onToggleSelect: () => void;
+  selectMode: boolean;
+}) {
   const style = NOTE_COLOR_STYLES[note.color];
   const togglePin = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -281,16 +470,41 @@ function NoteCard({
     await deleteNote(note.id!);
     await onChange();
   };
+  const onCardClick = () => {
+    if (selectMode) onToggleSelect();
+    else onOpen();
+  };
+  const onSelectClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleSelect();
+  };
 
   return (
     <div
-      onClick={onOpen}
+      onClick={onCardClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      aria-pressed={selectMode ? selected : undefined}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCardClick(); }
+      }}
       data-testid="note-card"
-      className={`group relative cursor-pointer rounded-xl ${style.bg} p-4 ring-1 ${style.ring} transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring`}
+      className={`group relative cursor-pointer rounded-xl ${style.bg} p-4 ring-1 ${style.ring} transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring ${
+        selected ? 'ring-2 ring-primary shadow-md' : ''
+      }`}
     >
+      {/* Keep-style select checkmark — visible on hover or when selected */}
+      <button
+        onClick={onSelectClick}
+        aria-label={selected ? 'Deselect note' : 'Select note'}
+        aria-pressed={selected}
+        title={selected ? 'Deselect' : 'Select'}
+        className={`absolute left-2 top-2 rounded-full bg-background/80 p-1 text-foreground shadow-sm transition-opacity focus:outline-none focus:ring-2 focus:ring-ring ${
+          selected || selectMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+        }`}
+      >
+        {selected ? <CheckCircle2 size={16} className="text-primary" /> : <Circle size={16} />}
+      </button>
       <button
         onClick={togglePin}
         title={note.pinned ? 'Unpin' : 'Pin'}
@@ -299,7 +513,7 @@ function NoteCard({
       >
         {note.pinned ? <PinOff size={14} /> : <Pin size={14} />}
       </button>
-      {note.title && <h3 className="mb-1 pr-7 text-sm font-semibold leading-snug">{note.title}</h3>}
+      {note.title && <h3 className="mb-1 px-7 text-sm font-semibold leading-snug">{note.title}</h3>}
       {note.content && (
         <p className="whitespace-pre-wrap break-words text-sm leading-snug text-foreground/90 line-clamp-[12]">
           {note.content}
@@ -328,6 +542,7 @@ function NoteCard({
     </div>
   );
 }
+
 
 function Composer({
   open, setOpen, onCreate, onAIGenerate, onAIMulti,
@@ -490,7 +705,10 @@ function EditModal({
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(note.tags);
   const [aiBusy, setAiBusy] = useState<null | 'summarize' | 'expand' | 'improve'>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
 
   // Keyboard: Esc closes, Cmd/Ctrl+S saves.
   useEffect(() => {
@@ -547,7 +765,7 @@ function EditModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Edit note"
@@ -555,17 +773,18 @@ function EditModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl ${style.bg} p-5 ring-1 ${style.ring} shadow-xl`}
+        className={`relative flex h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-none ${style.bg} p-4 ring-1 ${style.ring} shadow-xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:p-5`}
       >
-        <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-md p-1.5 hover:bg-background/60">
+        <button onClick={onClose} aria-label="Close dialog" className="absolute right-3 top-3 z-10 rounded-md p-1.5 hover:bg-background/60 focus:outline-none focus:ring-2 focus:ring-ring">
           <X size={16} />
         </button>
         <input
+          ref={titleRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           aria-label="Note title"
-          className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent pr-10 text-base font-semibold outline-none placeholder:text-muted-foreground focus:ring-0"
         />
         <textarea
           value={content}
@@ -573,7 +792,7 @@ function EditModal({
           placeholder="Take a note…"
           aria-label="Note content"
           rows={10}
-          className="mt-2 w-full flex-1 resize-none overflow-auto bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="mt-2 min-h-[40vh] w-full flex-1 resize-none overflow-auto bg-transparent text-sm outline-none placeholder:text-muted-foreground sm:min-h-0"
         />
 
         <div className="mt-3 flex flex-wrap items-center gap-1.5">

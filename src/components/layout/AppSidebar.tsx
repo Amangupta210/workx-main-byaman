@@ -292,15 +292,28 @@ export default function AppSidebar() {
                 <span>How to use</span>
               </button>
               <PWAInstallButton />
-              <a
-                href="https://www.instagram.com/gupta_aman_1516"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="block px-2 pt-2 text-center text-[10.5px] text-muted-foreground hover:text-foreground"
-                title="Open creator's Instagram"
-              >
-                Built by Aman Gupta
-              </a>
+              <div className="px-2 pt-2 text-center text-[10.5px] text-muted-foreground">
+                Built by{' '}
+                <a
+                  href="https://www.instagram.com/gupta_aman_1516"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="hover:text-foreground"
+                  title="Aman Gupta on Instagram"
+                >
+                  Aman Gupta
+                </a>
+                {' & '}
+                <a
+                  href="https://www.instagram.com/_.s.aura.b._/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="hover:text-foreground"
+                  title="Saurab Negi on Instagram"
+                >
+                  Saurab Negi
+                </a>
+              </div>
             </div>
           </motion.aside>
         )}
