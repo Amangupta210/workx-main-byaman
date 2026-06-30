@@ -374,7 +374,7 @@ Contribution steps:
 
 ## 👨‍💻 Creator
 
-Created by **Aman Gupta**
+Created by **Aman Gupta & Saurab negi**
 
 📧 Email: amangupta777aman@gmail.com  
 📧 Email: saurabnegi668@gmail.com
