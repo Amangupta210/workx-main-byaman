@@ -11,6 +11,7 @@ import { AnimatePresence } from 'framer-motion';
 import type { Block } from '@/types/editor';
 import { saveMedia } from '@/lib/db';
 import { Image, X } from 'lucide-react';
+import { CREATORS } from '@/lib/credits';
 
 const SortableBlock = React.forwardRef<HTMLDivElement, { block: Block; index: number }>(
   function SortableBlock({ block, index }, _ref) {
@@ -132,21 +133,18 @@ export default function BlockEditor() {
       <div className="max-w-[var(--editor-max-width)] mx-auto px-6 md:px-12 pb-8 text-center">
         <p className="text-xs text-muted-foreground/40">
           Made by{' '}
-          <a
-            href="https://www.instagram.com/gupta_aman_1516"
-            target="_blank" rel="noopener noreferrer"
-            className="hover:text-muted-foreground transition-colors underline decoration-muted-foreground/20 hover:decoration-muted-foreground/40"
-          >
-            Aman Gupta
-          </a>
-          {' & '}
-          <a
-            href="https://www.instagram.com/_.s.aura.b._/"
-            target="_blank" rel="noopener noreferrer"
-            className="hover:text-muted-foreground transition-colors underline decoration-muted-foreground/20 hover:decoration-muted-foreground/40"
-          >
-            Saurab Negi
-          </a>
+          {CREATORS.map((c, i) => (
+            <React.Fragment key={c.handle}>
+              {i > 0 && ' & '}
+              <a
+                href={c.instagram}
+                target="_blank" rel="noopener noreferrer"
+                className="hover:text-muted-foreground transition-colors underline decoration-muted-foreground/20 hover:decoration-muted-foreground/40"
+              >
+                {c.name}
+              </a>
+            </React.Fragment>
+          ))}
         </p>
       </div>
     </div>

@@ -13,6 +13,7 @@ import EmojiPicker from '@/components/editor/EmojiPicker';
 import AboutModal from '@/components/editor/AboutModal';
 import logo from '@/assets/logo_workx.png';
 import { exportPageAsMarkdown } from '@/lib/export';
+import { CREATORS } from '@/lib/credits';
 import PWAInstallButton from '@/components/PWAInstallButton';
 
 export default function AppSidebar() {
@@ -294,25 +295,20 @@ export default function AppSidebar() {
               <PWAInstallButton />
               <div className="px-2 pt-2 text-center text-[10.5px] text-muted-foreground">
                 Built by{' '}
-                <a
-                  href="https://www.instagram.com/gupta_aman_1516"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="hover:text-foreground"
-                  title="Aman Gupta on Instagram"
-                >
-                  Aman Gupta
-                </a>
-                {' & '}
-                <a
-                  href="https://www.instagram.com/_.s.aura.b._/"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="hover:text-foreground"
-                  title="Saurab Negi on Instagram"
-                >
-                  Saurab Negi
-                </a>
+                {CREATORS.map((c, i) => (
+                  <React.Fragment key={c.handle}>
+                    {i > 0 && ' & '}
+                    <a
+                      href={c.instagram}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="hover:text-foreground"
+                      title={`${c.name} on Instagram`}
+                    >
+                      {c.name}
+                    </a>
+                  </React.Fragment>
+                ))}
               </div>
             </div>
           </motion.aside>

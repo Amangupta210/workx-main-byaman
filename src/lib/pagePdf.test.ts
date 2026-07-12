@@ -134,7 +134,7 @@ describe('home page PDF export (end-to-end smoke)', () => {
     expect(calls.text.mock.calls.length).toBeGreaterThan(3);
   });
 
-  it('exports the same page offline with strict text + image assertions', async () => {
+  it('exports the same page offline with strict text + image + credit assertions', async () => {
     pingMock.mockResolvedValue(false);
     await exportPageAsPdf(samplePage(), 'offline.pdf');
     expect(calls.save).toHaveBeenCalledWith('offline.pdf');
@@ -165,6 +165,23 @@ describe('home page PDF export (end-to-end smoke)', () => {
     expect(rendered).toContain('☑');
     // Footer rendered on at least one page.
     expect(rendered).toMatch(/page 1 \/ 1/);
+    // Credit rendered from the shared source of truth.
+    expect(rendered).toContain('Aman Gupta');
+    expect(rendered).toContain('https://www.instagram.com/gupta_aman_1516');
+    // Removed creator MUST NOT appear anywhere in the PDF.
+    expect(rendered).not.toMatch(/Saurab/i);
+    expect(rendered).not.toContain('s.aura.b');
+  });
+
+  it('renders the same credit set online as offline', async () => {
+    pingMock.mockResolvedValue(true);
+    await exportPageAsPdf(samplePage(), 'online.pdf');
+    const rendered = calls.text.mock.calls
+      .map((c) => (Array.isArray(c[0]) ? c[0].join(' ') : String(c[0])))
+      .join('\n');
+    expect(rendered).toContain('Aman Gupta');
+    expect(rendered).toContain('https://www.instagram.com/gupta_aman_1516');
+    expect(rendered).not.toMatch(/Saurab/i);
   });
 
   it('still produces a PDF when a page has no blocks and no cover', async () => {

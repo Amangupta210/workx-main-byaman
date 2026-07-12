@@ -11,6 +11,7 @@ import {
   type Mood,
 } from '@/lib/journalDb';
 import { saveMedia, loadMedia } from '@/lib/db';
+import { CREATORS } from '@/lib/credits';
 import {
   Search, Plus, X, BookOpen, Calendar as CalendarIcon, Image as ImageIcon,
   Save, Sparkles, RefreshCw, Heart, Lock, Settings, ArrowLeft, Trash2, Brain, Loader2,
@@ -633,25 +634,20 @@ function JournalPage() {
 
         <div className="mt-10 text-center text-xs text-white/40">
           Made with <span className="text-red-400">♥</span> by{' '}
-          <a
-            href="https://www.instagram.com/gupta_aman_1516"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="hover:text-white/80 underline decoration-white/20"
-            title="Aman Gupta on Instagram"
-          >
-            Aman Gupta
-          </a>
-          {' & '}
-          <a
-            href="https://www.instagram.com/_.s.aura.b._/"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="hover:text-white/80 underline decoration-white/20"
-            title="Saurab Negi on Instagram"
-          >
-            Saurab Negi
-          </a>
+          {CREATORS.map((c, i) => (
+            <React.Fragment key={c.handle}>
+              {i > 0 && ' & '}
+              <a
+                href={c.instagram}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="hover:text-white/80 underline decoration-white/20"
+                title={`${c.name} on Instagram`}
+              >
+                {c.name}
+              </a>
+            </React.Fragment>
+          ))}
         </div>
       </div>
 

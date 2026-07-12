@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Type, Heading1, CheckSquare, Image, Video, Code, Minus, Music, Table } from 'lucide-react';
+import { CREATORS } from '@/lib/credits';
 
 interface AboutModalProps {
   open: boolean;
@@ -100,9 +101,12 @@ export default function AboutModal({ open, onClose }: AboutModalProps) {
           <div className="pt-2 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
               Made with ❤️ by{' '}
-              <a href="https://www.instagram.com/gupta_aman_1516" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Aman Gupta</a>
-              {' & '}
-              <a href="https://www.instagram.com/_.s.aura.b._/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Saurab Negi</a>
+              {CREATORS.map((c, i) => (
+                <React.Fragment key={c.handle}>
+                  {i > 0 && ' & '}
+                  <a href={c.instagram} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{c.name}</a>
+                </React.Fragment>
+              ))}
             </p>
           </div>
         </div>

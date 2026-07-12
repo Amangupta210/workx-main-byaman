@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import type { Page, Block } from '@/types/editor';
 import { loadMedia } from '@/lib/db';
+import { creditLine } from '@/lib/credits';
 
 function stripHtml(html: string): string {
   return html
@@ -209,7 +210,8 @@ export async function exportPageAsPdf(page: Page, filename?: string) {
     await renderBlock(b);
   }
 
-  // Footers
+  // Footers (include shared creator credit — single source of truth)
+  const credit = creditLine('Made by');
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
@@ -217,6 +219,9 @@ export async function exportPageAsPdf(page: Page, filename?: string) {
     doc.setFontSize(8);
     doc.setTextColor(170, 170, 180);
     doc.text(`Work X  —  ${page.title || 'Untitled'}  —  page ${p} / ${pages}`, pageW / 2, pageH - 22, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(190, 190, 200);
+    doc.text(credit, pageW / 2, pageH - 12, { align: 'center' });
   }
 
   const safe = (page.title || 'untitled').replace(/[/\\:*?"<>|]/g, '-').trim() || 'untitled';
