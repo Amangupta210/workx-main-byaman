@@ -374,15 +374,13 @@ Contribution steps:
 
 ## 👨‍💻 Creator
 
-Created by **Aman Gupta & Saurab negi**
+Created by Aman Gupta
 
 📧 Email: amangupta777aman@gmail.com  
-📧 Email: saurabnegi668@gmail.com
 
 📸 Instagram:  
 [@gupta_aman_1516](https://www.instagram.com/gupta_aman_1516?)
-@_.s.aura.b._
-](https://www.instagram.com/_.s.aura.b._/)
+
 
 ---
 
