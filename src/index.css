@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -41,6 +39,11 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --board-coral: 7 72% 52%;
+    --board-amber: 40 90% 42%;
+    --board-green: 154 57% 35%;
+    --board-blue: 199 72% 39%;
+    --board-violet: 267 48% 50%;
   }
 
   .dark {
@@ -77,6 +80,11 @@
     --sidebar-accent-foreground: 210 20% 85%;
     --sidebar-border: 220 12% 18%;
     --sidebar-ring: 199 89% 48%;
+    --board-coral: 7 77% 67%;
+    --board-amber: 40 90% 62%;
+    --board-green: 154 57% 55%;
+    --board-blue: 199 72% 63%;
+    --board-violet: 267 58% 72%;
   }
 }
 
@@ -193,4 +201,23 @@
 .ai-recent-block {
   animation: ai-recent-pulse 6s ease-out forwards;
   border-radius: 6px;
+}
+
+.whiteboard-grid {
+  background-image: radial-gradient(hsl(var(--muted-foreground) / 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.board-color-coral { background-color: hsl(var(--board-coral)); }
+.board-color-amber { background-color: hsl(var(--board-amber)); }
+.board-color-green { background-color: hsl(var(--board-green)); }
+.board-color-blue { background-color: hsl(var(--board-blue)); }
+.board-color-violet { background-color: hsl(var(--board-violet)); }
+.board-color-ink { background-color: hsl(var(--foreground)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .whiteboard-grid,
+  .board-object {
+    transition: none;
+  }
 }

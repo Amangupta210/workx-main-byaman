@@ -9,6 +9,7 @@ import Calendar from "./pages/Calendar.tsx";
 import Tasks from "./pages/Tasks.tsx";
 import Journal from "./pages/Journal.tsx";
 import Notes from "./pages/Notes.tsx";
+import Whiteboard from "./pages/Whiteboard.tsx";
 
 
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/notes" element={<Notes />} />
+          <Route path="/whiteboard" element={<Whiteboard />} />
 
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
