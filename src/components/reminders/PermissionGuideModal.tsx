@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { X, BellRing, ShieldCheck, WifiOff, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  requestPermission,
+  rerequestPermission,
   subscribePermission,
   type ReminderPermission,
 } from '@/lib/reminders';
+
 
 export default function PermissionGuideModal({
   open,
@@ -109,15 +111,21 @@ export default function PermissionGuideModal({
           </button>
           <button
             onClick={async () => {
-              const r = await requestPermission();
-              if (r === 'denied') {
-                alert('Notifications are blocked. Open site settings and allow them, then reload.');
+              const { status, needsManual } = await rerequestPermission();
+              if (status === 'granted') {
+                toast.success('Reminders enabled');
+                onClose();
+              } else if (needsManual) {
+                toast.error('Blocked by the browser — allow notifications in site settings, then reload.');
+              } else if (status === 'denied') {
+                toast.error('Permission denied — in-app toasts will still work.');
               }
             }}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
           >
-            <BellRing size={12} /> Enable reminders
+            <BellRing size={12} /> {perm === 'denied' ? 'Re-request permission' : 'Enable reminders'}
           </button>
+
         </div>
       </div>
     </div>

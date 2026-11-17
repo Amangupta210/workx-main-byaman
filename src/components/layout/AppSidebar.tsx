@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores/uiStore';
 import {
   Plus, Trash2, ChevronRight, ChevronDown, Search,
   PanelLeftClose, HelpCircle, Star, Moon, Sun, Download, Calendar as CalendarIcon, Home, CheckSquare,
-  BookHeart, StickyNote,
+  BookHeart, StickyNote, Shapes,
 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,7 +28,8 @@ export default function AppSidebar() {
   const onTasks = location.pathname.startsWith('/tasks');
   const onJournal = location.pathname.startsWith('/journal');
   const onNotesPage = location.pathname.startsWith('/notes');
-  const onNotes = !onCalendar && !onTasks && !onJournal && !onNotesPage;
+  const onWhiteboard = location.pathname.startsWith('/whiteboard');
+  const onNotes = !onCalendar && !onTasks && !onJournal && !onNotesPage && !onWhiteboard;
 
 
   // BUG FIXED: removed `hoveredPage` useState + onMouseEnter/onMouseLeave.
@@ -219,6 +220,13 @@ export default function AppSidebar() {
               >
                 <StickyNote size={14} />
                 <span>Sticky Notes</span>
+              </Link>
+              <Link
+                to="/whiteboard"
+                className={`sidebar-item w-full text-sm ${onWhiteboard ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+              >
+                <Shapes size={14} />
+                <span>Whiteboard</span>
               </Link>
 
             </div>
