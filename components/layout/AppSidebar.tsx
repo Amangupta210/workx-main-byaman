@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores/uiStore';
 import {
   Plus, Trash2, ChevronRight, ChevronDown, Search,
   PanelLeftClose, HelpCircle, Star, Moon, Sun, Download, Calendar as CalendarIcon, Home, CheckSquare,
-  BookHeart, StickyNote,
+  BookHeart, StickyNote, Shapes,
 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import EmojiPicker from '@/components/editor/EmojiPicker';
 import AboutModal from '@/components/editor/AboutModal';
 import logo from '@/assets/logo_workx.png';
 import { exportPageAsMarkdown } from '@/lib/export';
+import { CREATORS } from '@/lib/credits';
 import PWAInstallButton from '@/components/PWAInstallButton';
 
 export default function AppSidebar() {
@@ -27,7 +28,8 @@ export default function AppSidebar() {
   const onTasks = location.pathname.startsWith('/tasks');
   const onJournal = location.pathname.startsWith('/journal');
   const onNotesPage = location.pathname.startsWith('/notes');
-  const onNotes = !onCalendar && !onTasks && !onJournal && !onNotesPage;
+  const onWhiteboard = location.pathname.startsWith('/whiteboard');
+  const onNotes = !onCalendar && !onTasks && !onJournal && !onNotesPage && !onWhiteboard;
 
 
   // BUG FIXED: removed `hoveredPage` useState + onMouseEnter/onMouseLeave.
@@ -219,6 +221,13 @@ export default function AppSidebar() {
                 <StickyNote size={14} />
                 <span>Sticky Notes</span>
               </Link>
+              <Link
+                to="/whiteboard"
+                className={`sidebar-item w-full text-sm ${onWhiteboard ? 'sidebar-item-active' : 'text-muted-foreground'}`}
+              >
+                <Shapes size={14} />
+                <span>Whiteboard</span>
+              </Link>
 
             </div>
 
@@ -292,15 +301,23 @@ export default function AppSidebar() {
                 <span>How to use</span>
               </button>
               <PWAInstallButton />
-              <a
-                href="https://www.instagram.com/gupta_aman_1516"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="block px-2 pt-2 text-center text-[10.5px] text-muted-foreground hover:text-foreground"
-                title="Open creator's Instagram"
-              >
-                Built by Aman Gupta
-              </a>
+              <div className="px-2 pt-2 text-center text-[10.5px] text-muted-foreground">
+                Built by{' '}
+                {CREATORS.map((c, i) => (
+                  <React.Fragment key={c.handle}>
+                    {i > 0 && ' & '}
+                    <a
+                      href={c.instagram}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="hover:text-foreground"
+                      title={`${c.name} on Instagram`}
+                    >
+                      {c.name}
+                    </a>
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           </motion.aside>
         )}

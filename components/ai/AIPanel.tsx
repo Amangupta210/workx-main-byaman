@@ -16,10 +16,13 @@ import {
   Undo2,
   Brain,
   Wand2,
+  Globe,
 } from 'lucide-react';
 import { useAIStore } from '@/stores/aiStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useEditorStore } from '@/stores/editorStore';
+import { pingOllama } from '@/lib/ollama';
+import { isNetworkOnline } from '@/lib/wiki';
 import {
   aiDb,
   getOllamaSettings,
@@ -56,6 +59,8 @@ export default function AIPanel() {
     setWorkspaceMemory,
     organizeWorkspace,
     createRichTasksFromActivePage,
+    wikiSearch,
+    setWikiSearch,
   } = useAIStore();
 
   const activePage = useEditorStore((s) => s.activePage());
@@ -65,6 +70,26 @@ export default function AIPanel() {
   const [tab, setTab] = useState<Tab>('chat');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Wiki search is only meaningful when the AI is reachable AND we have network.
+  const [aiOnline, setAiOnline] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const ok = (await pingOllama()) && isNetworkOnline();
+      if (alive) setAiOnline(ok);
+    };
+    check();
+    const id = setInterval(check, 20000);
+    window.addEventListener('online', check);
+    window.addEventListener('offline', check);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener('online', check);
+      window.removeEventListener('offline', check);
+    };
+  }, []);
 
   // Reload chat whenever the active page changes.
   useEffect(() => {
@@ -160,6 +185,33 @@ export default function AIPanel() {
             </button>
           </div>
         </div>
+
+        {/* Online-only: Wikipedia grounding */}
+        {aiOnline && (
+          <div className="flex items-center justify-between gap-2 border-b border-border bg-secondary/30 px-4 py-2">
+            <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Globe size={12} className="text-primary" />
+              <span className="truncate">
+                Wiki search {wikiSearch ? 'on — answers grounded with sources' : 'off — local knowledge only'}
+              </span>
+            </div>
+            <button
+              onClick={() => setWikiSearch(!wikiSearch)}
+              role="switch"
+              aria-checked={wikiSearch}
+              aria-label="Toggle Wikipedia search grounding"
+              className={`relative h-4 w-8 shrink-0 rounded-full transition-colors ${
+                wikiSearch ? 'bg-primary' : 'bg-muted'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-3 w-3 rounded-full bg-background transition-all ${
+                  wikiSearch ? 'left-4' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-border bg-card">
