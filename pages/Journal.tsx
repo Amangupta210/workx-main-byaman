@@ -11,6 +11,7 @@ import {
   type Mood,
 } from '@/lib/journalDb';
 import { saveMedia, loadMedia } from '@/lib/db';
+import { CREATORS } from '@/lib/credits';
 import {
   Search, Plus, X, BookOpen, Calendar as CalendarIcon, Image as ImageIcon,
   Save, Sparkles, RefreshCw, Heart, Lock, Settings, ArrowLeft, Trash2, Brain, Loader2,
@@ -632,7 +633,21 @@ function JournalPage() {
         )}
 
         <div className="mt-10 text-center text-xs text-white/40">
-          Made with <span className="text-red-400">♥</span> by Aman Gupta
+          Made with <span className="text-red-400">♥</span> by{' '}
+          {CREATORS.map((c, i) => (
+            <React.Fragment key={c.handle}>
+              {i > 0 && ' & '}
+              <a
+                href={c.instagram}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="hover:text-white/80 underline decoration-white/20"
+                title={`${c.name} on Instagram`}
+              >
+                {c.name}
+              </a>
+            </React.Fragment>
+          ))}
         </div>
       </div>
 

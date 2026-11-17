@@ -14,7 +14,7 @@ import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { Bell, Plus, Trash2, Check, FlaskConical, Sparkles, Loader2, X } from 'lucide-react';
 import ReminderStatusBadge from '@/components/reminders/ReminderStatusBadge';
 import OllamaStatusBadge from '@/components/ai/OllamaStatusBadge';
-import { getDefaultReminderMins, triggerTestReminder } from '@/lib/reminders';
+import { getDefaultReminderMins, subscribeDefaultReminderMins, triggerTestReminder } from '@/lib/reminders';
 import { toast } from 'sonner';
 import { generateRichTasks, OllamaError, pingOllama } from '@/lib/ollama';
 
@@ -312,10 +312,12 @@ function AITaskModal({ onClose }: { onClose: () => void }) {
 
 
 function TaskRow({ task }: { task: RichTaskRecord }) {
-  const def = getDefaultReminderMins();
+  const [def, setDef] = React.useState(getDefaultReminderMins());
+  React.useEffect(() => subscribeDefaultReminderMins(setDef), []);
   const effectiveMins = task.reminderMinsBefore ?? def;
   const usingOverride = task.reminderMinsBefore != null;
   const overdue = task.due && !task.completed && task.due < Date.now();
+
 
   return (
     <li

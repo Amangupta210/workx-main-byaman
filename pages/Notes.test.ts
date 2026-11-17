@@ -161,4 +161,78 @@ describe('Notes export', () => {
     expect(() => exportNotesToTxt([])).toThrow();
     expect(() => exportNotesToPdf([])).toThrow();
   });
+
+  it('TXT export contains ONLY the selected scope, not unrelated notes', async () => {
+    const captured: string[] = [];
+    const OriginalBlob = global.Blob;
+    // @ts-expect-error — test stub
+    global.Blob = function (chunks: BlobPart[]) { captured.push(chunks.map(String).join('')); return new OriginalBlob(chunks); };
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+
+    const all = [
+      { id: 1, title: 'Mon', content: 'monday-body', color: 'default', pinned: false, archived: false, tags: [], createdAt: 1, updatedAt: 1 },
+      { id: 2, title: 'Tue', content: 'tuesday-body', color: 'default', pinned: false, archived: false, tags: [], createdAt: 2, updatedAt: 2 },
+      { id: 3, title: 'Wed', content: 'wednesday-body', color: 'default', pinned: false, archived: false, tags: [], createdAt: 3, updatedAt: 3 },
+    ] as Parameters<typeof exportNotesToTxt>[0];
+
+    exportNotesToTxt([all[1]], 'tue.txt');
+    const singleText = captured.pop() ?? '';
+    expect(singleText).toContain('# Tue');
+    expect(singleText).toContain('tuesday-body');
+    expect(singleText).not.toContain('monday-body');
+    expect(singleText).not.toContain('wednesday-body');
+    expect(singleText).toContain('STICKY NOTES — 1 note ');
+
+    exportNotesToTxt(all, 'all.txt');
+    const allText = captured.pop() ?? '';
+    expect(allText).toContain('monday-body');
+    expect(allText).toContain('tuesday-body');
+    expect(allText).toContain('wednesday-body');
+    expect(allText).toContain('STICKY NOTES — 3 notes');
+
+    global.Blob = OriginalBlob;
+  });
+
+  it('reports progress 0→100 via the optional callback (for the UI progress bar)', () => {
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+    const pcts: number[] = [];
+    exportNotesToTxt(
+      [
+        { id: 1, title: 'A', content: 'a', color: 'default', pinned: false, archived: false, tags: [], createdAt: 1, updatedAt: 1 },
+        { id: 2, title: 'B', content: 'b', color: 'default', pinned: false, archived: false, tags: [], createdAt: 2, updatedAt: 2 },
+      ] as Parameters<typeof exportNotesToTxt>[0],
+      'p.txt',
+      (pct) => pcts.push(pct),
+    );
+    expect(pcts[0]).toBeLessThanOrEqual(10);
+    expect(pcts[pcts.length - 1]).toBe(100);
+    for (let i = 1; i < pcts.length; i++) expect(pcts[i]).toBeGreaterThanOrEqual(pcts[i - 1]);
+  });
+
+  it('selected-scope export matches in both online and offline Ollama modes', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:fake');
+    URL.revokeObjectURL = vi.fn();
+    const captured: string[] = [];
+    const OriginalBlob = global.Blob;
+    // @ts-expect-error — test stub
+    global.Blob = function (chunks: BlobPart[]) { captured.push(chunks.map(String).join('')); return new OriginalBlob(chunks); };
+
+    const scope = [
+      { id: 10, title: 'Selected', content: 'only-this', color: 'default', pinned: false, archived: false, tags: [], createdAt: 1, updatedAt: 1 },
+    ] as Parameters<typeof exportNotesToTxt>[0];
+
+    pingMock.mockResolvedValue(true);
+    exportNotesToTxt(scope, 'sel-online.txt');
+    pingMock.mockResolvedValue(false);
+    exportNotesToTxt(scope, 'sel-offline.txt');
+
+    expect(captured).toHaveLength(2);
+    // Exports are pure (don't touch Ollama) — content must be identical.
+    expect(captured[0]).toBe(captured[1]);
+    expect(captured[0]).toContain('only-this');
+
+    global.Blob = OriginalBlob;
+  });
 });
