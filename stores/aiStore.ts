@@ -22,6 +22,7 @@ import {
 } from '@/lib/aiDb';
 import { useEditorStore } from '@/stores/editorStore';
 import { buildWorkspaceContext } from '@/lib/workspaceMemory';
+import { searchWiki, formatWikiContext, isNetworkOnline } from '@/lib/wiki';
 
 export interface PendingTaskBatch {
   pageId: string;
@@ -40,6 +41,7 @@ interface AIState {
   pendingTasks: PendingTaskBatch | null;
   abortController: AbortController | null;
   workspaceMemory: boolean;
+  wikiSearch: boolean;
 
   loadForPage: (pageId: string | null) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
@@ -58,6 +60,7 @@ interface AIState {
   stop: () => void;
   setPendingTasks: (b: PendingTaskBatch | null) => void;
   setWorkspaceMemory: (on: boolean) => void;
+  setWikiSearch: (on: boolean) => void;
 }
 
 function makeMsg(role: ChatMessage['role'], content: string, pageId: string | null): ChatMessage {
@@ -80,6 +83,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   pendingTasks: null,
   abortController: null,
   workspaceMemory: false,
+  wikiSearch: true,
 
   loadForPage: async (pageId) => {
     if (get().scopePageId === pageId && get().messages.length > 0) {
@@ -272,6 +276,7 @@ export const useAIStore = create<AIState>((set, get) => ({
 
   setPendingTasks: (b) => set({ pendingTasks: b }),
   setWorkspaceMemory: (on) => set({ workspaceMemory: on }),
+  setWikiSearch: (on) => set({ wikiSearch: on }),
 
   askPrompt: async (text, opts = {}) => {
     const trimmed = text.trim();
@@ -302,6 +307,16 @@ export const useAIStore = create<AIState>((set, get) => ({
 
     const controller = new AbortController();
     set({ abortController: controller });
+
+    // Online grounding: pull Wikipedia reference material so answers are real.
+    if (get().wikiSearch && isNetworkOnline()) {
+      try {
+        const hits = await searchWiki(trimmed, 3, controller.signal);
+        const wiki = formatWikiContext(hits);
+        if (wiki) context = context ? `${wiki}\n\n---\n\n${context}` : wiki;
+      } catch {}
+    }
+
     try {
       let acc = '';
       await askAI(trimmed, {
