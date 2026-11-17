@@ -1,14 +1,24 @@
 /**
  * Export sticky notes as a clean printable PDF or a plain-text bundle.
+ *
+ * Both exporters accept an optional `onProgress(pct, label)` callback so the
+ * UI can show a progress indicator while many notes are being formatted.
  */
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import type { StickyNote } from '@/lib/notesDb';
 
-export function exportNotesToTxt(notes: StickyNote[], filename = 'sticky-notes.txt') {
+export type ExportProgress = (pct: number, label?: string) => void;
+
+export function exportNotesToTxt(
+  notes: StickyNote[],
+  filename = 'sticky-notes.txt',
+  onProgress?: ExportProgress,
+) {
   if (!notes.length) throw new Error('No notes to export');
+  onProgress?.(5, 'Formatting…');
   const sep = '\n' + '─'.repeat(60) + '\n';
-  const parts = notes.map((n) => {
+  const parts = notes.map((n, i) => {
     const head = [
       n.title ? `# ${n.title}` : '# (untitled)',
       `Updated: ${format(new Date(n.updatedAt), 'MMM d, yyyy HH:mm')}`,
@@ -16,15 +26,23 @@ export function exportNotesToTxt(notes: StickyNote[], filename = 'sticky-notes.t
       n.archived ? 'Archived: yes' : null,
       n.tags?.length ? `Tags: ${n.tags.map((t) => '#' + t).join(' ')}` : null,
     ].filter(Boolean).join('\n');
+    onProgress?.(5 + Math.round(((i + 1) / notes.length) * 85), `Note ${i + 1}/${notes.length}`);
     return `${head}\n\n${n.content || ''}`.trimEnd();
   });
   const body = `STICKY NOTES — ${notes.length} note${notes.length === 1 ? '' : 's'} — ${format(new Date(), 'MMM d, yyyy')}\n${sep}${parts.join(sep)}\n`;
   const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+  onProgress?.(95, 'Saving…');
   triggerDownload(blob, filename);
+  onProgress?.(100, 'Done');
 }
 
-export function exportNotesToPdf(notes: StickyNote[], filename = 'sticky-notes.pdf') {
+export function exportNotesToPdf(
+  notes: StickyNote[],
+  filename = 'sticky-notes.pdf',
+  onProgress?: ExportProgress,
+) {
   if (!notes.length) throw new Error('No notes to export');
+  onProgress?.(2, 'Preparing PDF…');
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -106,6 +124,7 @@ export function exportNotesToPdf(notes: StickyNote[], filename = 'sticky-notes.p
       doc.line(margin, y + 4, pageW - margin, y + 4);
       y += 22;
     }
+    onProgress?.(5 + Math.round(((i + 1) / sorted.length) * 88), `Note ${i + 1}/${sorted.length}`);
   }
 
   // Footers
@@ -118,7 +137,9 @@ export function exportNotesToPdf(notes: StickyNote[], filename = 'sticky-notes.p
     doc.text(`Work X · Sticky Notes  —  page ${p} / ${pages}`, pageW / 2, pageH - 20, { align: 'center' });
   }
 
+  onProgress?.(96, 'Saving…');
   doc.save(filename);
+  onProgress?.(100, 'Done');
 }
 
 function triggerDownload(blob: Blob, filename: string) {

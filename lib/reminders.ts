@@ -57,6 +57,9 @@ function updateDebug(taskId: number, patch: Partial<ReminderDebugInfo>) {
 
 /* ───────── Default reminder minutes ───────── */
 
+type MinsListener = (m: number) => void;
+const minsListeners = new Set<MinsListener>();
+
 export function getDefaultReminderMins(): number {
   try {
     const raw = localStorage.getItem(DEFAULT_MINS_KEY);
@@ -68,11 +71,19 @@ export function getDefaultReminderMins(): number {
   }
 }
 export function setDefaultReminderMins(mins: number) {
+  const v = Math.max(0, Math.min(1440, Math.floor(mins) || 0));
   try {
-    localStorage.setItem(DEFAULT_MINS_KEY, String(Math.max(0, Math.floor(mins))));
+    localStorage.setItem(DEFAULT_MINS_KEY, String(v));
   } catch {}
+  minsListeners.forEach((fn) => { try { fn(v); } catch {} });
   // Reschedule everything with the new default.
   sweep();
+}
+/** Subscribe to changes of the global default lead time (minutes before due). */
+export function subscribeDefaultReminderMins(fn: MinsListener): () => void {
+  minsListeners.add(fn);
+  fn(getDefaultReminderMins());
+  return () => minsListeners.delete(fn);
 }
 
 /* ───────── Permission helpers ───────── */
@@ -89,6 +100,7 @@ const permListeners = new Set<PermListener>();
 export function subscribePermission(fn: PermListener): () => void {
   permListeners.add(fn);
   fn(getPermissionStatus());
+  watchPermissionChanges();
   return () => permListeners.delete(fn);
 }
 function emitPermission() {
@@ -98,20 +110,51 @@ function emitPermission() {
   });
 }
 
+/** Live-track OS/browser permission flips (e.g. user unblocks in site settings). */
+let permWatched = false;
+function watchPermissionChanges() {
+  if (permWatched || typeof navigator === 'undefined') return;
+  permWatched = true;
+  try {
+    navigator.permissions?.query({ name: 'notifications' as PermissionName }).then((status) => {
+      status.onchange = () => emitPermission();
+    }).catch(() => undefined);
+  } catch {}
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', emitPermission);
+    document.addEventListener('visibilitychange', emitPermission);
+  }
+}
+
 export async function requestPermission(): Promise<ReminderPermission> {
   if (typeof Notification === 'undefined') return 'unsupported';
-  if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+  if (Notification.permission === 'granted') {
     emitPermission();
-    return Notification.permission as ReminderPermission;
+    return 'granted';
   }
   try {
     const r = await Notification.requestPermission();
     emitPermission();
     return r as ReminderPermission;
   } catch {
-    return 'default';
+    emitPermission();
+    return getPermissionStatus();
   }
 }
+
+/**
+ * One-click re-request. Browsers ignore requestPermission() once denied, so we
+ * always attempt it and report back whether the user must unblock manually.
+ */
+export async function rerequestPermission(): Promise<{
+  status: ReminderPermission;
+  needsManual: boolean;
+}> {
+  const before = getPermissionStatus();
+  const status = await requestPermission();
+  return { status, needsManual: status === 'denied' && before === 'denied' };
+}
+
 
 /* ───────── Test fire ───────── */
 

@@ -4,6 +4,7 @@
  * takes effect on the next request without a reload.
  */
 import { getOllamaSettings, DEFAULT_OLLAMA_URL, DEFAULT_OLLAMA_MODEL } from './aiDb';
+import { creditLine } from './credits';
 
 export { DEFAULT_OLLAMA_URL, DEFAULT_OLLAMA_MODEL } from './aiDb';
 
@@ -218,8 +219,8 @@ Your job: actually answer the user. Solve problems, do math, write, brainstorm, 
 
 DO NOT volunteer information about WorkX or its creator. Do not introduce yourself or recite an app description in normal replies. Greet briefly when greeted ("hi" → "Hey! What can I help with?"). For math like "2+2?" just answer ("4").
 
-ONLY mention WorkX or its creator when the user explicitly asks about THIS app, who built it, what WorkX is, its features, the founder/developer/maker, or "who made you / who are you / about you". In that case answer:
-"WorkX is an offline-first productivity workspace — notes, tasks, journal, calendar, voice notes, and local AI. Created by Aman Gupta — Instagram: https://www.instagram.com/gupta_aman_1516"
+ONLY mention WorkX or its creators when the user explicitly asks about THIS app, who built it, what WorkX is, its features, the founders/developers/makers, or "who made you / who are you / about you". In that case answer:
+"WorkX is an offline-first productivity workspace — notes, tasks, journal, calendar, voice notes, and local AI. ${creditLine('Created by')}."
 
 Never claim to be GPT, Claude, or any other branded model — you're a local model via Ollama. Help with the user's real-world question first.`;
 
